@@ -1,0 +1,63 @@
+a) EXPLAIN ANALYZE SELECT * FROM students WHERE name = 'name8';
+   b-tree index
+
+"Index Scan using index_name on students  (cost=0.29..8.31 rows=1 width=60) (actual time=0.113..0.115 rows=1 loops=1)"
+"  Index Cond: ((name)::text = 'name8'::text)"
+"Planning Time: 4.536 ms"
+"Execution Time: 0.190 ms"
+
+
+a+) EXPLAIN ANALYZE SELECT * FROM students WHERE date_of_birth = '2000-07-07'
+    hash index
+
+"Bitmap Heap Scan on students  (cost=4.38..165.94 rows=49 width=60) (actual time=0.029..0.085 rows=60 loops=1)"
+"  Recheck Cond: (date_of_birth = '2000-07-07'::date)"
+"  Heap Blocks: exact=59"
+"  ->  Bitmap Index Scan on index_date_of_birth  (cost=0.00..4.37 rows=49 width=0) (actual time=0.015..0.015 rows=60 loops=1)"
+"        Index Cond: (date_of_birth = '2000-07-07'::date)"
+"Planning Time: 0.123 ms"
+"Execution Time: 0.116 ms"
+
+
+b) EXPLAIN ANALYZE SELECT * FROM students WHERE surname LIKE 'su%';
+   no index
+
+"Seq Scan on students  (cost=0.00..2282.11 rows=10 width=60) (actual time=0.019..33.189 rows=9 loops=1)"
+"  Filter: ((surname)::text ~~ 'su%'::text)"
+"  Rows Removed by Filter: 100000"
+"Planning Time: 0.122 ms"
+"Execution Time: 33.208 ms"
+
+
+c) EXPLAIN ANALYZE SELECT * FROM students WHERE CAST(phone_number AS varchar) LIKE '%9999';
+   no index
+
+"Seq Scan on students  (cost=0.00..2782.16 rows=160 width=60) (actual time=0.055..67.775 rows=13 loops=1)"
+"  Filter: (((phone_number)::character varying)::text ~~ '%9999'::text)"
+"  Rows Removed by Filter: 99996"
+"Planning Time: 0.299 ms"
+"Execution Time: 67.824 ms"
+
+
+d) EXPLAIN ANALYZE 
+   SELECT students.surname, subjects.subject_name, exam_results.mark
+   FROM exam_results
+   INNER JOIN students ON exam_results.student_id = students.student_id
+   INNER JOIN subjects ON exam_results.subject_id = subjects.subject_id
+   WHERE students.surname LIKE '%me1';
+
+   no index
+
+"Nested Loop  (cost=51.91..2336.61 rows=1 width=24) (actual time=0.154..32.040 rows=5 loops=1)"
+"  ->  Hash Join  (cost=51.63..2336.09 rows=1 width=18) (actual time=0.126..31.988 rows=5 loops=1)"
+"        Hash Cond: (students.student_id = exam_results.student_id)"
+"        ->  Seq Scan on students  (cost=0.00..2282.11 rows=10 width=14) (actual time=0.029..31.865 rows=1 loops=1)"
+"              Filter: ((surname)::text ~~ '%me1'::text)"
+"              Rows Removed by Filter: 100008"
+"        ->  Hash  (cost=28.50..28.50 rows=1850 width=12) (actual time=0.073..0.092 rows=45 loops=1)"
+"              Buckets: 2048  Batches: 1  Memory Usage: 18kB"
+"              ->  Seq Scan on exam_results  (cost=0.00..28.50 rows=1850 width=12) (actual time=0.019..0.040 rows=45 loops=1)"
+"  ->  Index Scan using subjects_pkey on subjects  (cost=0.29..0.53 rows=1 width=14) (actual time=0.008..0.008 rows=1 loops=5)"
+"        Index Cond: (subject_id = exam_results.subject_id)"
+"Planning Time: 1.242 ms"
+"Execution Time: 32.119 ms"
